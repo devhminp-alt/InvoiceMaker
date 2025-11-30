@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:InvoiceMaker.ViewModels"
-        Title="Invoice Generator" Height="550" Width="1250">
+        Title="Invoice Generator" Height="550" Width="1300">
     <Window.DataContext>
         <vm:InvoiceViewModel />
     </Window.DataContext>
@@ -14,7 +14,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 상단 -->
+        <!-- 상단 영역 -->
         <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
             <StackPanel Margin="0,0,20,0">
                 <TextBlock Text="Invoice Date" />
@@ -35,6 +35,17 @@
                 </StackPanel>
             </StackPanel>
 
+            <StackPanel Margin="0,0,20,0">
+                <TextBlock Text="Exchange Rate (1 USD = KRW)" />
+                <TextBox Text="{Binding ExchangeRateUsdToKrw}" Width="120"/>
+            </StackPanel>
+
+            <StackPanel Margin="0,0,20,0">
+                <TextBlock Text="할인율(%)" />
+                <TextBox Text="{Binding GlobalDiscountPercent}"
+                         Width="80"/>
+            </StackPanel>
+
             <StackPanel Margin="20,0,20,0">
                 <TextBlock Text="숙박 시작" />
                 <DatePicker SelectedDate="{Binding LodgingStartDate}" Width="150"/>
@@ -46,7 +57,7 @@
             </StackPanel>
         </StackPanel>
 
-        <!-- 가운데 리스트 + 버튼 -->
+        <!-- 가운데: 항목 + 버튼 -->
         <Grid Grid.Row="1">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -68,10 +79,27 @@
                       Margin="0,0,0,10"
                       CellEditEnding="DataGrid_CellEditEnding">
                 <DataGrid.Columns>
-                    <!-- 0. 항목 타입 -->
                     <DataGridComboBoxColumn Header="항목 타입"
-                                            Width="90"
-                                            SelectedItemBinding="{Binding ItemType, UpdateSourceTrigger=PropertyChanged}" />
+                        Width="90"
+                        SelectedItemBinding="{Binding ItemType, UpdateSourceTrigger=PropertyChanged}">
+                        <!-- 표시 모드(읽기) -->
+                        <DataGridComboBoxColumn.ElementStyle>
+                            <Style TargetType="ComboBox">
+                                <Setter Property="ItemsSource"
+                    Value="{Binding DataContext.ItemTypes,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+                            </Style>
+                        </DataGridComboBoxColumn.ElementStyle>
+
+                        <!-- 편집 모드(드롭다운 열릴 때) -->
+                        <DataGridComboBoxColumn.EditingElementStyle>
+                            <Style TargetType="ComboBox">
+                                <Setter Property="ItemsSource"
+                    Value="{Binding DataContext.ItemTypes,
+                                    RelativeSource={RelativeSource AncestorType=DataGrid}}" />
+                            </Style>
+                        </DataGridComboBoxColumn.EditingElementStyle>
+                    </DataGridComboBoxColumn>
 
                     <!-- 1. 시작일 -->
                     <DataGridTemplateColumn Header="시작일" Width="110">
@@ -106,7 +134,7 @@
                                         Binding="{Binding RoomNumber, UpdateSourceTrigger=PropertyChanged}"
                                         Width="70"/>
 
-                    <!-- 4. 설명 (좁게) -->
+                    <!-- 4. 설명 -->
                     <DataGridTextColumn Header="설명"
                                         Binding="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
                                         Width="150"/>
@@ -121,25 +149,36 @@
                                         Binding="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}"
                                         Width="70"/>
 
-                    <!-- 7. dias (읽기 전용) -->
+                    <!-- 7. dias -->
                     <DataGridTextColumn Header="dias"
                                         Binding="{Binding Days}"
                                         IsReadOnly="True"
                                         Width="60"/>
 
-                    <!-- 8. 금액(USD) -->
+                    <!-- 8. 할인(%) -->
+                    <DataGridTextColumn Header="할인(%)"
+                                        Binding="{Binding DiscountPercent, UpdateSourceTrigger=PropertyChanged}"
+                                        Width="70"/>
+
+                    <!-- 9. 금액(USD) -->
                     <DataGridTextColumn Header="금액(USD)"
                                         Binding="{Binding AmountUsd, StringFormat=N2}"
                                         IsReadOnly="True"
                                         Width="110"/>
 
-                    <!-- 9. 금액(PESO) -->
+                    <!-- 10. 금액(PESO) -->
                     <DataGridTextColumn Header="금액(PESO)"
                                         Binding="{Binding AmountPeso, StringFormat=N2}"
                                         IsReadOnly="True"
                                         Width="110"/>
 
-                    <!-- 10. 삭제 버튼 -->
+                    <!-- 11. 금액(원화) -->
+                    <DataGridTextColumn Header="금액(원화)"
+                                        Binding="{Binding AmountKrw, StringFormat=N0}"
+                                        IsReadOnly="True"
+                                        Width="110"/>
+
+                    <!-- 12. 삭제 버튼 -->
                     <DataGridTemplateColumn Header="삭제" Width="60">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
@@ -154,17 +193,13 @@
             </DataGrid>
         </Grid>
 
-        <!-- 하단 합계 -->
+        <!-- 하단 합계 + 엑셀 버튼 -->
         <StackPanel Grid.Row="2"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Center">
 
-            <Button Content="엑셀로 내보내기"
-                    Margin="0,0,20,0"
-                    Padding="10,3"
-                    Command="{Binding ExportToExcelCommand}" />
-
+            <!-- 합계 -->
             <StackPanel Orientation="Horizontal">
                 <StackPanel Margin="0,0,20,0">
                     <TextBlock Text="Total (USD)" />
@@ -173,14 +208,27 @@
                                FontWeight="Bold"
                                HorizontalAlignment="Right"/>
                 </StackPanel>
-                <StackPanel>
+                <StackPanel Margin="0,0,20,0">
                     <TextBlock Text="Total (PESO)" />
                     <TextBlock Text="{Binding TotalPeso, StringFormat=N2}"
                                FontSize="16"
                                FontWeight="Bold"
                                HorizontalAlignment="Right"/>
                 </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="Total (원)" />
+                    <TextBlock Text="{Binding TotalKrw, StringFormat=N0}"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Right"/>
+                </StackPanel>
             </StackPanel>
+
+            <!-- 엑셀 버튼 (합계 오른쪽) -->
+            <Button Content="엑셀로 내보내기"
+                    Margin="20,0,0,0"
+                    Padding="10,3"
+                    Command="{Binding ExportToExcelCommand}" />
         </StackPanel>
     </Grid>
 </Window>

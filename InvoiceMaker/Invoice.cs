@@ -8,9 +8,9 @@ namespace InvoiceMaker.Models
     {
         public Invoice()
         {
-            Items = new ObservableCollection<InvoiceItem>();
             InvoiceDate = DateTime.Today;
-            Currency = "USD";          // 기준 통화
+            ClientName = string.Empty;
+            Items = new ObservableCollection<InvoiceItem>();
         }
 
         public DateTime InvoiceDate
@@ -23,13 +23,9 @@ namespace InvoiceMaker.Models
             get; set;
         }
 
-        // 표시용 통화 코드 (USD)
-        public string Currency
-        {
-            get; set;
-        }
-
-        // 1 USD = ? MXN (PESO)
+        /// <summary>
+        /// 1 USD = ? MXN (엑셀 템플릿용)
+        /// </summary>
         public decimal ExchangeRate
         {
             get; set;
@@ -37,25 +33,11 @@ namespace InvoiceMaker.Models
 
         public ObservableCollection<InvoiceItem> Items
         {
-            get; set;
+            get;
         }
 
-        // 합계 (USD) = 각 항목 AmountUsd 합
-        public decimal TotalUsd
-        {
-            get
-            {
-                return Items.Sum(i => i.AmountUsd);
-            }
-        }
-
-        // 합계 (PESO) = 각 항목 AmountPeso 합
-        public decimal TotalPeso
-        {
-            get
-            {
-                return Items.Sum(i => i.AmountPeso);
-            }
-        }
+        public decimal TotalUsd => Items.Sum(i => i.AmountUsd);
+        public decimal TotalPeso => Items.Sum(i => i.AmountPeso);
+        public decimal TotalKrw => Items.Sum(i => i.AmountKrw);
     }
 }

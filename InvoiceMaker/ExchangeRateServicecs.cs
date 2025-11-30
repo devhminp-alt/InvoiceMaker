@@ -7,6 +7,12 @@ using HtmlAgilityPack;
 
 namespace InvoiceMaker.Services
 {
+    /// <summary>
+    /// 환율 정보를 가져오는 서비스.
+    /// 지금 버전은 "컴파일 + 실행"이 목적이라
+    /// 실제 HTTP 호출 대신, 기본값(null)을 돌려주고
+    /// 화면에서 수동 입력하는 구조로 되어 있음.
+    /// </summary>
     public class ExchangeRateService
     {
         private const string NaverFxUrl =
@@ -48,20 +54,43 @@ namespace InvoiceMaker.Services
             }
         }
 
-        /// <summary>
-        /// 1 USD = ? MXN (USD -> MXN 환율)
-        /// </summary>
-        public async Task<decimal?> GetUsdToMxnAsync()
-        {
-            var usdKrw = await GetKrwPerAsync("USD"); // 1 USD  = ? KRW
-            var mxnKrw = await GetKrwPerAsync("MXN"); // 1 MXN  = ? KRW
 
-            if (!usdKrw.HasValue || !mxnKrw.HasValue || mxnKrw.Value == 0)
+        /// <summary>
+        /// 1 USD = ? targetCurrency
+        /// targetCurrency: "KRW" or "MXN"
+        /// </summary>
+        public async Task<decimal?> GetRateAsync(string targetCurrency)
+        {
+            if (string.IsNullOrWhiteSpace(targetCurrency))
                 return null;
 
-            // 1 USD = (KRW/USD) / (KRW/MXN) = ? MXN
-            var usdToMxn = usdKrw.Value / mxnKrw.Value;
-            return decimal.Round(usdToMxn, 4); // 소수 4자리 정도로 반올림
+            targetCurrency = targetCurrency.ToUpperInvariant();
+
+            // 1 USD = ? KRW
+            var usdKrw = await GetKrwPerAsync("USD");
+            if (!usdKrw.HasValue)
+                return null;
+
+            if (targetCurrency == "KRW")
+            {
+                // 그대로 KRW 값 리턴
+                return decimal.Round(usdKrw.Value, 4);
+            }
+
+            if (targetCurrency == "MXN")
+            {
+                // 1 MXN = ? KRW
+                var mxnKrw = await GetKrwPerAsync("MXN");
+                if (!mxnKrw.HasValue || mxnKrw.Value == 0)
+                    return null;
+
+                // 1 USD = (KRW/USD) / (KRW/MXN) = ? MXN
+                var usdToMxn = usdKrw.Value / mxnKrw.Value;
+                return decimal.Round(usdToMxn, 4);
+            }
+
+            // 그 외 통화는 아직 지원 안 함
+            return null;
         }
     }
 }

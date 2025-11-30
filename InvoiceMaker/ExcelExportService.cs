@@ -1,5 +1,4 @@
-﻿using System;
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
 using InvoiceMaker.Models;
 
 namespace InvoiceMaker.Services
@@ -12,6 +11,7 @@ namespace InvoiceMaker.Services
         {
             _templatePath = templatePath;
         }
+
         public void Export(Invoice invoice, string outputPath)
         {
             using (var workbook = new XLWorkbook(_templatePath))
@@ -19,13 +19,12 @@ namespace InvoiceMaker.Services
                 var ws = workbook.Worksheet(1);
 
                 // 헤더
-                ws.Cell("I9").Value = invoice.InvoiceDate;
-                ws.Cell("C8").Value = invoice.ClientName ?? "";
-                ws.Cell("I10").Value = invoice.ExchangeRate;
+                ws.Cell("I9").Value = invoice.InvoiceDate;               // Fecha de la factura
+                ws.Cell("C8").Value = invoice.ClientName ?? string.Empty;
+                ws.Cell("I10").Value = invoice.ExchangeRate;              // 1 USD = MXN (환율)
 
-                // 항목 위치
-                int topRow = 12;     // 윗 인보이스 시작
-                int bottomRow = 34;  // 아랫 인보이스 시작
+                int topRow = 12;  // 위 인보이스 시작
+                int bottomRow = 34;  // 아래 인보이스 시작
 
                 foreach (var item in invoice.Items)
                 {
@@ -33,35 +32,32 @@ namespace InvoiceMaker.Services
                     if (item.Days == 0 &&
                         item.Quantity == 0 &&
                         item.UnitPrice == 0 &&
-                        string.IsNullOrWhiteSpace(item.Description))
+                        string.IsNullOrWhiteSpace(item.Description) &&
+                        string.IsNullOrWhiteSpace(item.ItemType))
+                    {
                         continue;
+                    }
 
-                    // =======================
-                    // 1) 윗 인보이스 직접 값 입력
-                    // =======================
+                    // ===== 위 인보이스 (직접 값 입력) =====
                     ws.Cell($"A{topRow}").Value = item.StartDate;
                     ws.Cell($"C{topRow}").Value = item.EndDate;
-                    ws.Cell($"D{topRow}").Value = item.RoomNumber ?? "";
+                    ws.Cell($"D{topRow}").Value = item.RoomNumber ?? string.Empty;
 
                     var desc = string.IsNullOrWhiteSpace(item.Description)
                         ? item.ItemType
                         : item.Description;
-                    ws.Cell($"E{topRow}").Value = desc;
+                    ws.Cell($"E{topRow}").Value = desc ?? string.Empty;
 
                     ws.Cell($"F{topRow}").Value = item.UnitPrice;
                     ws.Cell($"G{topRow}").Value = item.Quantity;
                     ws.Cell($"H{topRow}").Value = item.Days;
 
-                    // 금액 USD
+                    // I: USD 금액 (엑셀 수식)
                     ws.Cell($"I{topRow}").FormulaA1 = $"=F{topRow}*G{topRow}*H{topRow}";
-
-                    // 금액 PESO
+                    // J: Peso 금액
                     ws.Cell($"J{topRow}").FormulaA1 = $"=I{topRow}*$I$10";
 
-                    // =======================
-                    // 2) 아랫 인보이스 = 윗 인보이스 참조
-                    // =======================
-
+                    // ===== 아래 인보이스 (위 셀 참조) =====
                     ws.Cell($"A{bottomRow}").FormulaA1 = $"=A{topRow}";
                     ws.Cell($"B{bottomRow}").FormulaA1 = $"=B{topRow}";
                     ws.Cell($"C{bottomRow}").FormulaA1 = $"=C{topRow}";
@@ -79,7 +75,5 @@ namespace InvoiceMaker.Services
                 workbook.SaveAs(outputPath);
             }
         }
-
     }
 }
-

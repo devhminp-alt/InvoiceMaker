@@ -1,15 +1,14 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using Microsoft.Win32;
 using InvoiceMaker.Models;
 using InvoiceMaker.Services;
-using System.Diagnostics;
 
 namespace InvoiceMaker.ViewModels
 {
@@ -18,8 +17,8 @@ namespace InvoiceMaker.ViewModels
         private readonly ExchangeRateService _exchangeRateService;
 
         private bool _isLoadingRate;
-        private decimal _exchangeRateUsdToMxn; // 1 USD = ? MXN
-
+        private decimal _exchangeRateUsdToKrw;
+        private decimal _globalDiscountPercent;
         private DateTime? _lodgingStartDate;
         private DateTime? _lodgingEndDate;
 
@@ -28,11 +27,9 @@ namespace InvoiceMaker.ViewModels
             _exchangeRateService = new ExchangeRateService();
 
             Invoice = new Invoice();
-            Invoice.Currency = "USD";
-
             Items = Invoice.Items;
 
-            // 숙박 시작/종료 디폴트: 오늘 / 내일
+            // 기본 날짜
             LodgingStartDate = DateTime.Today;
             LodgingEndDate = DateTime.Today.AddDays(1);
 
@@ -40,26 +37,25 @@ namespace InvoiceMaker.ViewModels
             ItemTypes = new ObservableCollection<string>
             {
                 "숙박",
-                "오마카세",
                 "출퇴근",
                 "공항픽업",
+                "오마카세",
                 "주말식사"
             };
 
-            // ★ 디폴트 한 줄: 숙박만 추가 ★
+            // 커맨드
+            RefreshRateCommand = new RelayCommand(async _ => await LoadExchangeRateAsync());
+            ExportToExcelCommand = new RelayCommand(_ => ExportToExcel());
+            AddItemCommand = new RelayCommand(_ => AddNewItem());
+            RemoveItemCommand = new RelayCommand(p => RemoveItem(p as InvoiceItem));
+
+            // 초기에 기본 항목 1개 (숙박)
             AddInitialItem("숙박");
 
-            // Commands
-            RefreshRateCommand = new RelayCommand(async p => await LoadExchangeRateAsync());
-            ExportToExcelCommand = new RelayCommand(p => ExportToExcel());
-            AddItemCommand = new RelayCommand(p => AddNewItem());
-            RemoveItemCommand = new RelayCommand(
-                p => RemoveItem(p as InvoiceItem),
-                p => p is InvoiceItem);
+            // 컬렉션 변경 이벤트
+            Items.CollectionChanged += Items_CollectionChanged;
 
-            foreach (var item in Items)
-                SubscribeItem(item);
-
+            // 시작 시 환율 로딩
             Task.Run(async () => await LoadExchangeRateAsync());
         }
 
@@ -67,25 +63,22 @@ namespace InvoiceMaker.ViewModels
 
         public Invoice Invoice
         {
-            get; private set;
+            get;
         }
 
         public ObservableCollection<InvoiceItem> Items
         {
-            get; private set;
+            get;
         }
 
         public ObservableCollection<string> ItemTypes
         {
-            get; private set;
+            get;
         }
 
         public bool IsLoadingRate
         {
-            get
-            {
-                return _isLoadingRate;
-            }
+            get => _isLoadingRate;
             set
             {
                 if (_isLoadingRate != value)
@@ -96,25 +89,50 @@ namespace InvoiceMaker.ViewModels
             }
         }
 
-        // 1 USD = ? MXN
+        /// <summary>1 USD = ? MXN</summary>
         public decimal ExchangeRateUsdToMxn
         {
-            get
-            {
-                return _exchangeRateUsdToMxn;
-            }
+            get => Invoice.ExchangeRate;
             set
             {
-                if (_exchangeRateUsdToMxn != value)
+                if (Invoice.ExchangeRate != value)
                 {
-                    _exchangeRateUsdToMxn = value;
                     Invoice.ExchangeRate = value;
                     OnPropertyChanged();
+                    UpdateItemExchangeRates();
+                }
+            }
+        }
 
-                    // 모든 항목에 환율 반영
+        /// <summary>1 USD = ? KRW</summary>
+        public decimal ExchangeRateUsdToKrw
+        {
+            get => _exchangeRateUsdToKrw;
+            set
+            {
+                if (_exchangeRateUsdToKrw != value)
+                {
+                    _exchangeRateUsdToKrw = value;
+                    OnPropertyChanged();
+                    UpdateItemExchangeRates();
+                }
+            }
+        }
+
+        /// <summary>전체 할인율 (%)</summary>
+        public decimal GlobalDiscountPercent
+        {
+            get => _globalDiscountPercent;
+            set
+            {
+                if (_globalDiscountPercent != value)
+                {
+                    _globalDiscountPercent = value;
+                    OnPropertyChanged();
+
                     foreach (var item in Items)
                     {
-                        item.ExchangeRate = value;
+                        item.DiscountPercent = value;
                     }
 
                     RecalculateTotals();
@@ -122,16 +140,9 @@ namespace InvoiceMaker.ViewModels
             }
         }
 
-        public decimal TotalUsd => Items.Sum(i => i.AmountUsd);
-        public decimal TotalPeso => Items.Sum(i => i.AmountPeso);
-
-        // 숙박 시작/종료 (헤더)
         public DateTime? LodgingStartDate
         {
-            get
-            {
-                return _lodgingStartDate;
-            }
+            get => _lodgingStartDate;
             set
             {
                 if (_lodgingStartDate != value)
@@ -145,10 +156,7 @@ namespace InvoiceMaker.ViewModels
 
         public DateTime? LodgingEndDate
         {
-            get
-            {
-                return _lodgingEndDate;
-            }
+            get => _lodgingEndDate;
             set
             {
                 if (_lodgingEndDate != value)
@@ -160,26 +168,30 @@ namespace InvoiceMaker.ViewModels
             }
         }
 
+        public decimal TotalUsd => Invoice.TotalUsd;
+        public decimal TotalPeso => Invoice.TotalPeso;
+        public decimal TotalKrw => Invoice.TotalKrw;
+
         // ===== Commands =====
 
         public ICommand RefreshRateCommand
         {
-            get; private set;
+            get;
         }
         public ICommand ExportToExcelCommand
         {
-            get; private set;
+            get;
         }
         public ICommand AddItemCommand
         {
-            get; private set;
+            get;
         }
         public ICommand RemoveItemCommand
         {
-            get; private set;
+            get;
         }
 
-        // ===== 메서드 =====
+        // ===== 로직 =====
 
         private async Task LoadExchangeRateAsync()
         {
@@ -187,10 +199,18 @@ namespace InvoiceMaker.ViewModels
             {
                 IsLoadingRate = true;
 
-                var rate = await _exchangeRateService.GetUsdToMxnAsync();
-                if (rate.HasValue)
+                // USD -> MXN
+                var mxn = await _exchangeRateService.GetRateAsync("MXN");
+                if (mxn.HasValue)
                 {
-                    ExchangeRateUsdToMxn = rate.Value;
+                    ExchangeRateUsdToMxn = mxn.Value;
+                }
+
+                // USD -> KRW
+                var krw = await _exchangeRateService.GetRateAsync("KRW");
+                if (krw.HasValue)
+                {
+                    ExchangeRateUsdToKrw = krw.Value;
                 }
 
                 RecalculateTotals();
@@ -201,94 +221,51 @@ namespace InvoiceMaker.ViewModels
             }
         }
 
-        public void RecalculateTotals()
+        private void UpdateItemExchangeRates()
         {
-            OnPropertyChanged(nameof(TotalUsd));
-            OnPropertyChanged(nameof(TotalPeso));
-        }
-
-        private decimal GetDefaultUnitPrice(string itemType)
-        {
-            // 항목별 USD 단가 – 값은 필요에 맞게 조정
-            switch (itemType)
+            foreach (var item in Items)
             {
-                case "숙박": return 50m;
-                case "오마카세": return 120m;
-                case "출퇴근": return 10m;
-                case "공항픽업": return 30m;
-                case "주말식사": return 20m;
-                default: return 0m;
-            }
-        }
-        private void AddInitialItem(string itemType)
-        {
-            DateTime start = LodgingStartDate ?? DateTime.Today;
-            DateTime end = LodgingEndDate ?? start.AddDays(1);
-
-            var item = new InvoiceItem
-            {
-                ItemType = itemType,
-                Description = "",
-                Quantity = 1,
-                UnitPrice = GetDefaultUnitPrice(itemType),
-                ExchangeRate = ExchangeRateUsdToMxn
-            };
-
-            // ★ 공항픽업 + 오마카세는 1일만 적용
-            if (itemType == "공항픽업" || itemType == "오마카세")
-            {
-                item.StartDate = start;
-                item.EndDate = start;   // 하루
-            }
-            else
-            {
-                item.StartDate = start;
-                item.EndDate = end;
+                item.ExchangeRate = ExchangeRateUsdToMxn;
+                item.ExchangeRateKrw = ExchangeRateUsdToKrw;
             }
 
-            Items.Add(item);
-        }
-
-
-        private void AddNewItem()
-        {
-            DateTime start = LodgingStartDate ?? DateTime.Today;
-            DateTime end = LodgingEndDate ?? start.AddDays(1);
-
-            var item = new InvoiceItem
-            {
-                ItemType = "숙박",
-                Description = "",
-                Quantity = 1,
-                UnitPrice = GetDefaultUnitPrice("숙박"),
-                ExchangeRate = ExchangeRateUsdToMxn,
-                StartDate = start,
-                EndDate = end
-            };
-
-            Items.Add(item);
-            SubscribeItem(item);
             RecalculateTotals();
         }
 
-        private void RemoveItem(InvoiceItem item)
+        private void Items_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            if (item == null) return;
+            if (e.NewItems != null)
+            {
+                foreach (InvoiceItem item in e.NewItems)
+                {
+                    SubscribeItem(item);
+                }
+            }
 
-            item.PropertyChanged -= InvoiceItem_PropertyChanged;
-            Items.Remove(item);
+            if (e.OldItems != null)
+            {
+                foreach (InvoiceItem item in e.OldItems)
+                {
+                    item.PropertyChanged -= InvoiceItem_PropertyChanged;
+                }
+            }
+
             RecalculateTotals();
         }
 
         private void SubscribeItem(InvoiceItem item)
         {
             item.PropertyChanged += InvoiceItem_PropertyChanged;
+            item.ExchangeRate = ExchangeRateUsdToMxn;
+            item.ExchangeRateKrw = ExchangeRateUsdToKrw;
+            item.DiscountPercent = GlobalDiscountPercent;
         }
 
         private void InvoiceItem_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             var item = sender as InvoiceItem;
             if (item == null) return;
+
             if (e.PropertyName == nameof(InvoiceItem.ItemType))
             {
                 item.UnitPrice = GetDefaultUnitPrice(item.ItemType);
@@ -296,11 +273,10 @@ namespace InvoiceMaker.ViewModels
                 DateTime start = LodgingStartDate ?? DateTime.Today;
                 DateTime end = LodgingEndDate ?? start.AddDays(1);
 
-                // ★ 공항픽업 + 오마카세는 하루 처리
                 if (item.ItemType == "공항픽업" || item.ItemType == "오마카세")
                 {
                     item.StartDate = start;
-                    item.EndDate = start;   // dias = 1
+                    item.EndDate = start;
                 }
                 else
                 {
@@ -308,11 +284,28 @@ namespace InvoiceMaker.ViewModels
                     item.EndDate = end;
                 }
 
+                item.DiscountPercent = GlobalDiscountPercent;
+            }
+
+            if (e.PropertyName == nameof(InvoiceItem.StartDate) ||
+                e.PropertyName == nameof(InvoiceItem.EndDate) ||
+                e.PropertyName == nameof(InvoiceItem.Quantity) ||
+                e.PropertyName == nameof(InvoiceItem.UnitPrice) ||
+                e.PropertyName == nameof(InvoiceItem.ExchangeRate) ||
+                e.PropertyName == nameof(InvoiceItem.ExchangeRateKrw) ||
+                e.PropertyName == nameof(InvoiceItem.DiscountPercent))
+            {
                 RecalculateTotals();
             }
         }
 
-        // 헤더 날짜 바뀌면: 공항픽업 제외한 항목들에 기본값 반영
+        public void RecalculateTotals()
+        {
+            OnPropertyChanged(nameof(TotalUsd));
+            OnPropertyChanged(nameof(TotalPeso));
+            OnPropertyChanged(nameof(TotalKrw));
+        }
+
         private void ApplyHeaderDatesToItems()
         {
             if (!LodgingStartDate.HasValue || !LodgingEndDate.HasValue)
@@ -325,11 +318,92 @@ namespace InvoiceMaker.ViewModels
             foreach (var item in Items)
             {
                 item.StartDate = start;
-                item.EndDate = (item.ItemType == "공항픽업" || item.ItemType == "오마카세") ? start : end;
+                item.EndDate = (item.ItemType == "공항픽업" || item.ItemType == "오마카세")
+                    ? start
+                    : end;
             }
 
             RecalculateTotals();
         }
+
+        private void AddInitialItem(string itemType)
+        {
+            DateTime start = LodgingStartDate ?? DateTime.Today;
+            DateTime end = LodgingEndDate ?? start.AddDays(1);
+
+            var item = new InvoiceItem
+            {
+                ItemType = itemType,
+                Description = string.Empty,
+                Quantity = 1,
+                UnitPrice = GetDefaultUnitPrice(itemType),
+                ExchangeRate = ExchangeRateUsdToMxn,
+                ExchangeRateKrw = ExchangeRateUsdToKrw,
+                DiscountPercent = GlobalDiscountPercent
+            };
+
+            if (itemType == "공항픽업" || itemType == "오마카세")
+            {
+                item.StartDate = start;
+                item.EndDate = start;
+            }
+            else
+            {
+                item.StartDate = start;
+                item.EndDate = end;
+            }
+
+            Items.Add(item);
+        }
+
+        private void AddNewItem()
+        {
+            DateTime start = LodgingStartDate ?? DateTime.Today;
+            DateTime end = LodgingEndDate ?? start.AddDays(1);
+
+            var item = new InvoiceItem
+            {
+                ItemType = "숙박",
+                Description = string.Empty,
+                Quantity = 1,
+                UnitPrice = GetDefaultUnitPrice("숙박"),
+                ExchangeRate = ExchangeRateUsdToMxn,
+                ExchangeRateKrw = ExchangeRateUsdToKrw,
+                DiscountPercent = GlobalDiscountPercent
+            };
+
+            item.StartDate = start;
+            item.EndDate = end;
+
+            Items.Add(item);
+        }
+
+        private void RemoveItem(InvoiceItem item)
+        {
+            if (item == null) return;
+            Items.Remove(item);
+        }
+
+        private decimal GetDefaultUnitPrice(string itemType)
+        {
+            // 필요하면 항목별 기본 단가 여기서 정의
+            switch (itemType)
+            {
+                case "숙박":
+                    return 50m;
+                case "출퇴근":
+                    return 10m;
+                case "공항픽업":
+                    return 30m;
+                case "오마카세":
+                    return 100m;
+                case "주말식사":
+                    return 20m;
+                default:
+                    return 0m;
+            }
+        }
+
         private void ExportToExcel()
         {
             try
@@ -354,11 +428,10 @@ namespace InvoiceMaker.ViewModels
                     var exporter = new ExcelExportService(templatePath);
                     exporter.Export(Invoice, dialog.FileName);
 
-                    // 엑셀 저장 성공 메시지
                     MessageBox.Show("엑셀 파일이 생성되었습니다.\n" + dialog.FileName);
 
-                    // 🔥 자동으로 엑셀 파일 열기
-                    System.Diagnostics.Process.Start(new ProcessStartInfo(dialog.FileName)
+                    // 자동으로 엑셀 열기
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dialog.FileName)
                     {
                         UseShellExecute = true
                     });
@@ -369,6 +442,5 @@ namespace InvoiceMaker.ViewModels
                 MessageBox.Show("엑셀 내보내기 중 오류가 발생했습니다.\n" + ex.Message);
             }
         }
-
     }
 }

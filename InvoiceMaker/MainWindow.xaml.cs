@@ -9,22 +9,11 @@ namespace InvoiceMaker
         public MainWindow()
         {
             InitializeComponent();
-
-            var vm = DataContext as InvoiceViewModel;
-            if (vm != null)
-            {
-                var comboCol = ItemsGrid.Columns[0] as DataGridComboBoxColumn;
-                if (comboCol != null)
-                {
-                    comboCol.ItemsSource = vm.ItemTypes;
-                }
-            }
         }
 
         private void DataGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
         {
-            var vm = DataContext as InvoiceViewModel;
-            if (vm != null)
+            if (DataContext is InvoiceViewModel vm)
             {
                 vm.RecalculateTotals();
             }
