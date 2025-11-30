@@ -1,0 +1,186 @@
+﻿<Window x:Class="InvoiceMaker.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:InvoiceMaker.ViewModels"
+        Title="Invoice Generator" Height="550" Width="1250">
+    <Window.DataContext>
+        <vm:InvoiceViewModel />
+    </Window.DataContext>
+
+    <Grid x:Name="RootGrid" Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 상단 -->
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+            <StackPanel Margin="0,0,20,0">
+                <TextBlock Text="Invoice Date" />
+                <DatePicker SelectedDate="{Binding Invoice.InvoiceDate}" Width="150"/>
+            </StackPanel>
+
+            <StackPanel Margin="0,0,20,0">
+                <TextBlock Text="Client Name" />
+                <TextBox Text="{Binding Invoice.ClientName}" Width="200"/>
+            </StackPanel>
+
+            <StackPanel Margin="0,0,20,0">
+                <TextBlock Text="Exchange Rate (1 USD = MXN)" />
+                <StackPanel Orientation="Horizontal">
+                    <TextBox Text="{Binding ExchangeRateUsdToMxn}" Width="120" Margin="0,0,5,0"/>
+                    <Button Content="환율 새로고침"
+                            Command="{Binding RefreshRateCommand}"/>
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel Margin="20,0,20,0">
+                <TextBlock Text="숙박 시작" />
+                <DatePicker SelectedDate="{Binding LodgingStartDate}" Width="150"/>
+            </StackPanel>
+
+            <StackPanel>
+                <TextBlock Text="숙박 종료" />
+                <DatePicker SelectedDate="{Binding LodgingEndDate}" Width="150"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- 가운데 리스트 + 버튼 -->
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Button Grid.Row="0"
+                    Content="항목 추가"
+                    Width="100"
+                    Margin="0,0,0,5"
+                    HorizontalAlignment="Left"
+                    Command="{Binding AddItemCommand}" />
+
+            <DataGrid x:Name="ItemsGrid"
+                      Grid.Row="1"
+                      ItemsSource="{Binding Items}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      Margin="0,0,0,10"
+                      CellEditEnding="DataGrid_CellEditEnding">
+                <DataGrid.Columns>
+                    <!-- 0. 항목 타입 -->
+                    <DataGridComboBoxColumn Header="항목 타입"
+                                            Width="90"
+                                            SelectedItemBinding="{Binding ItemType, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <!-- 1. 시작일 -->
+                    <DataGridTemplateColumn Header="시작일" Width="110">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding StartDate, StringFormat=yyyy-MM-dd}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <DatePicker SelectedDate="{Binding StartDate, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 2. 종료일 -->
+                    <DataGridTemplateColumn Header="종료일" Width="110">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding EndDate, StringFormat=yyyy-MM-dd}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                        <DataGridTemplateColumn.CellEditingTemplate>
+                            <DataTemplate>
+                                <DatePicker SelectedDate="{Binding EndDate, UpdateSourceTrigger=PropertyChanged}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellEditingTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 3. 방 번호 -->
+                    <DataGridTextColumn Header="방 번호"
+                                        Binding="{Binding RoomNumber, UpdateSourceTrigger=PropertyChanged}"
+                                        Width="70"/>
+
+                    <!-- 4. 설명 (좁게) -->
+                    <DataGridTextColumn Header="설명"
+                                        Binding="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                                        Width="150"/>
+
+                    <!-- 5. 단가(USD) -->
+                    <DataGridTextColumn Header="단가(USD)"
+                                        Binding="{Binding UnitPrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}"
+                                        Width="90"/>
+
+                    <!-- 6. 인원수 -->
+                    <DataGridTextColumn Header="인원수"
+                                        Binding="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}"
+                                        Width="70"/>
+
+                    <!-- 7. dias (읽기 전용) -->
+                    <DataGridTextColumn Header="dias"
+                                        Binding="{Binding Days}"
+                                        IsReadOnly="True"
+                                        Width="60"/>
+
+                    <!-- 8. 금액(USD) -->
+                    <DataGridTextColumn Header="금액(USD)"
+                                        Binding="{Binding AmountUsd, StringFormat=N2}"
+                                        IsReadOnly="True"
+                                        Width="110"/>
+
+                    <!-- 9. 금액(PESO) -->
+                    <DataGridTextColumn Header="금액(PESO)"
+                                        Binding="{Binding AmountPeso, StringFormat=N2}"
+                                        IsReadOnly="True"
+                                        Width="110"/>
+
+                    <!-- 10. 삭제 버튼 -->
+                    <DataGridTemplateColumn Header="삭제" Width="60">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="삭제"
+                                        Padding="4,1"
+                                        Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+
+        <!-- 하단 합계 -->
+        <StackPanel Grid.Row="2"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center">
+
+            <Button Content="엑셀로 내보내기"
+                    Margin="0,0,20,0"
+                    Padding="10,3"
+                    Command="{Binding ExportToExcelCommand}" />
+
+            <StackPanel Orientation="Horizontal">
+                <StackPanel Margin="0,0,20,0">
+                    <TextBlock Text="Total (USD)" />
+                    <TextBlock Text="{Binding TotalUsd, StringFormat=N2}"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Right"/>
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="Total (PESO)" />
+                    <TextBlock Text="{Binding TotalPeso, StringFormat=N2}"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Right"/>
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>
