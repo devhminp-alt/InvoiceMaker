@@ -151,8 +151,7 @@
 
                     <!-- 7. dias -->
                     <DataGridTextColumn Header="dias"
-                                        Binding="{Binding Days}"
-                                        IsReadOnly="True"
+                                        Binding="{Binding Days, UpdateSourceTrigger=PropertyChanged}"
                                         Width="60"/>
 
                     <!-- 8. 할인(%) -->

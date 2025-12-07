@@ -291,9 +291,11 @@ namespace InvoiceMaker.ViewModels
                 e.PropertyName == nameof(InvoiceItem.EndDate) ||
                 e.PropertyName == nameof(InvoiceItem.Quantity) ||
                 e.PropertyName == nameof(InvoiceItem.UnitPrice) ||
+                e.PropertyName == nameof(InvoiceItem.UnitPrice) ||
                 e.PropertyName == nameof(InvoiceItem.ExchangeRate) ||
                 e.PropertyName == nameof(InvoiceItem.ExchangeRateKrw) ||
-                e.PropertyName == nameof(InvoiceItem.DiscountPercent))
+                e.PropertyName == nameof(InvoiceItem.DiscountPercent) ||
+                e.PropertyName == nameof(InvoiceItem.Days))
             {
                 RecalculateTotals();
             }
@@ -390,9 +392,9 @@ namespace InvoiceMaker.ViewModels
             switch (itemType)
             {
                 case "숙박":
-                    return 50m;
+                    return 95m;
                 case "출퇴근":
-                    return 10m;
+                    return 50m;
                 case "공항픽업":
                     return 30m;
                 case "오마카세":

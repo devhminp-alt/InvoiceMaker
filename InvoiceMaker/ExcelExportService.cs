@@ -62,6 +62,7 @@ namespace InvoiceMaker.Services
                     ws.Cell($"B{bottomRow}").FormulaA1 = $"=B{topRow}";
                     ws.Cell($"C{bottomRow}").FormulaA1 = $"=C{topRow}";
                     ws.Cell($"D{bottomRow}").FormulaA1 = $"=D{topRow}";
+                    ws.Cell($"E{bottomRow}").FormulaA1 = $"=E{topRow}";
                     ws.Cell($"F{bottomRow}").FormulaA1 = $"=F{topRow}";
                     ws.Cell($"G{bottomRow}").FormulaA1 = $"=G{topRow}";
                     ws.Cell($"H{bottomRow}").FormulaA1 = $"=H{topRow}";

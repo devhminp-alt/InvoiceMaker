@@ -139,6 +139,7 @@ namespace InvoiceMaker.Models
                     OnPropertyChanged(nameof(AmountUsd));
                     OnPropertyChanged(nameof(AmountPeso));
                     OnPropertyChanged(nameof(AmountKrw));
+                    UpdateDays();
                 }
             }
         }
@@ -156,6 +157,7 @@ namespace InvoiceMaker.Models
                     OnPropertyChanged(nameof(AmountUsd));
                     OnPropertyChanged(nameof(AmountPeso));
                     OnPropertyChanged(nameof(AmountKrw));
+                    UpdateDays();
                 }
             }
         }
@@ -193,18 +195,31 @@ namespace InvoiceMaker.Models
         // ===== 계산 프로퍼티 =====
 
         /// <summary>dias (종료일 - 시작일 + 1). 날짜 없으면 0</summary>
+        private int _days;
         public int Days
         {
-            get
+            get => _days;
+            set
             {
-                if (!StartDate.HasValue || !EndDate.HasValue)
-                    return 0;
+                if (_days != value)
+                {
+                    _days = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(AmountUsd));
+                    OnPropertyChanged(nameof(AmountPeso));
+                    OnPropertyChanged(nameof(AmountKrw));
+                }
+            }
+        }
 
-                var s = StartDate.Value.Date;
-                var e = EndDate.Value.Date;
-                if (e < s) e = s;
-
-                return (e - s).Days + 1;
+        // 날짜 변경될 때 자동 Dias 계산
+        private void UpdateDays()
+        {
+            if (StartDate.HasValue && EndDate.HasValue)
+            {
+                int calc = (EndDate.Value - StartDate.Value).Days;
+                if (calc < 1) calc = 1;   // 최소 1일
+                Days = calc;
             }
         }
 
