@@ -102,7 +102,7 @@
                     </DataGridComboBoxColumn>
 
                     <!-- 1. 시작일 -->
-                    <DataGridTemplateColumn Header="시작일" Width="110">
+                    <DataGridTemplateColumn Header="시작일" Width="80">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding StartDate, StringFormat=yyyy-MM-dd}"/>
@@ -116,7 +116,7 @@
                     </DataGridTemplateColumn>
 
                     <!-- 2. 종료일 -->
-                    <DataGridTemplateColumn Header="종료일" Width="110">
+                    <DataGridTemplateColumn Header="종료일" Width="80">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding EndDate, StringFormat=yyyy-MM-dd}"/>
@@ -177,7 +177,29 @@
                                         IsReadOnly="True"
                                         Width="110"/>
 
-                    <!-- 12. 삭제 버튼 -->
+                    <!-- 12. 이동 버튼 -->
+                    <DataGridTemplateColumn Header="이동" Width="80">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Button Content="▲"
+                        Padding="2"
+                        Margin="0,0,3,0"
+                        Command="{Binding DataContext.MoveItemUpCommand,
+                                          RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                        CommandParameter="{Binding}" />
+
+                                    <Button Content="▼"
+                        Padding="2"
+                        Command="{Binding DataContext.MoveItemDownCommand,
+                                          RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                        CommandParameter="{Binding}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- 13. 삭제 버튼 -->
                     <DataGridTemplateColumn Header="삭제" Width="60">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>

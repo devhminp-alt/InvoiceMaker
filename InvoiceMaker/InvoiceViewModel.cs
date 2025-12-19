@@ -9,6 +9,7 @@ using System.Windows.Input;
 using Microsoft.Win32;
 using InvoiceMaker.Models;
 using InvoiceMaker.Services;
+using DocumentFormat.OpenXml.Drawing.Diagrams;
 
 namespace InvoiceMaker.ViewModels
 {
@@ -40,7 +41,8 @@ namespace InvoiceMaker.ViewModels
                 "출퇴근",
                 "공항픽업",
                 "오마카세",
-                "주말식사"
+                "주말식사",
+                "렌터카"
             };
 
             // 커맨드
@@ -48,6 +50,8 @@ namespace InvoiceMaker.ViewModels
             ExportToExcelCommand = new RelayCommand(_ => ExportToExcel());
             AddItemCommand = new RelayCommand(_ => AddNewItem());
             RemoveItemCommand = new RelayCommand(p => RemoveItem(p as InvoiceItem));
+            MoveItemUpCommand = new RelayCommand(p => MoveUp(p as InvoiceItem));
+            MoveItemDownCommand = new RelayCommand(p => MoveDown(p as InvoiceItem));
 
             // 초기에 기본 항목 1개 (숙박)
             AddInitialItem("숙박");
@@ -118,7 +122,7 @@ namespace InvoiceMaker.ViewModels
                 }
             }
         }
-
+        
         /// <summary>전체 할인율 (%)</summary>
         public decimal GlobalDiscountPercent
         {
@@ -273,15 +277,19 @@ namespace InvoiceMaker.ViewModels
                 DateTime start = LodgingStartDate ?? DateTime.Today;
                 DateTime end = LodgingEndDate ?? start.AddDays(1);
 
-                if (item.ItemType == "공항픽업" || item.ItemType == "오마카세")
+                item.StartDate = start;
+                switch(item.ItemType)
                 {
-                    item.StartDate = start;
-                    item.EndDate = start;
-                }
-                else
-                {
-                    item.StartDate = start;
-                    item.EndDate = end;
+                    case "공항픽업":
+                    case "오마카세":
+                        item.EndDate = start;
+                        break;
+                    case "렌터카":
+                        item.EndDate = end.AddDays(-1);
+                        break;
+                    default:
+                        item.EndDate = end;
+                        break;
                 }
 
                 item.DiscountPercent = GlobalDiscountPercent;
@@ -358,6 +366,23 @@ namespace InvoiceMaker.ViewModels
             Items.Add(item);
         }
 
+        public ICommand MoveItemUpCommand { get; }
+        public ICommand MoveItemDownCommand { get; }
+
+        private void MoveUp(InvoiceItem item)
+        {
+            int index = Items.IndexOf(item);
+            if (index > 0)
+                Items.Move(index, index - 1);
+        }
+
+        private void MoveDown(InvoiceItem item)
+        {
+            int index = Items.IndexOf(item);
+            if (index < Items.Count - 1)
+                Items.Move(index, index + 1);
+        }
+
         private void AddNewItem()
         {
             DateTime start = LodgingStartDate ?? DateTime.Today;
@@ -401,6 +426,8 @@ namespace InvoiceMaker.ViewModels
                     return 100m;
                 case "주말식사":
                     return 20m;
+                case "렌터카":
+                    return 45m;
                 default:
                     return 0m;
             }
@@ -424,7 +451,7 @@ namespace InvoiceMaker.ViewModels
                     Filter = "Excel Files (*.xlsx)|*.xlsx",
                     FileName = "Factura_" + Invoice.InvoiceDate.ToString("yyyyMMdd") + ".xlsx"
                 };
-
+                
                 if (dialog.ShowDialog() == true)
                 {
                     var exporter = new ExcelExportService(templatePath);

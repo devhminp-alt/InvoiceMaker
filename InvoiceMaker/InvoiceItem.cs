@@ -217,7 +217,7 @@ namespace InvoiceMaker.Models
         {
             if (StartDate.HasValue && EndDate.HasValue)
             {
-                int calc = (EndDate.Value - StartDate.Value).Days;
+                int calc = (EndDate.Value - StartDate.Value).Days - 1;
                 if (calc < 1) calc = 1;   // 최소 1일
                 Days = calc;
             }

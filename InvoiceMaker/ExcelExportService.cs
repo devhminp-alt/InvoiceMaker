@@ -19,9 +19,10 @@ namespace InvoiceMaker.Services
                 var ws = workbook.Worksheet(1);
 
                 // 헤더
-                ws.Cell("I9").Value = invoice.InvoiceDate;               // Fecha de la factura
+                ws.Cell("J9").Value = invoice.InvoiceDate;               // Fecha de la factura
                 ws.Cell("C8").Value = invoice.ClientName ?? string.Empty;
                 ws.Cell("I10").Value = invoice.ExchangeRate;              // 1 USD = MXN (환율)
+                ws.Cell("G8").Value = $"N0. de factura:{invoice.InvoiceDate.ToString("yyMMdd")}"; // invoice 넘버
 
                 int topRow = 12;  // 위 인보이스 시작
                 int bottomRow = 34;  // 아래 인보이스 시작
