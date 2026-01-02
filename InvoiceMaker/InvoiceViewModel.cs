@@ -10,6 +10,9 @@ using Microsoft.Win32;
 using InvoiceMaker.Models;
 using InvoiceMaker.Services;
 using DocumentFormat.OpenXml.Drawing.Diagrams;
+using InvoiceMaker.Repositories;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace InvoiceMaker.ViewModels
 {
@@ -22,10 +25,19 @@ namespace InvoiceMaker.ViewModels
         private decimal _globalDiscountPercent;
         private DateTime? _lodgingStartDate;
         private DateTime? _lodgingEndDate;
+        private readonly ItemMasterRepository _itemMasterRepo;
+        private Dictionary<string, ItemMaster> _itemMasterMap;
 
         public InvoiceViewModel()
         {
             _exchangeRateService = new ExchangeRateService();
+            _itemMasterRepo = new ItemMasterRepository();
+
+            // ItemName → ItemMaster 매핑
+            _itemMasterRepo = new ItemMasterRepository();
+            _itemMasterMap = _itemMasterRepo
+                .GetAll()
+                .ToDictionary(x => x.Description);
 
             Invoice = new Invoice();
             Items = Invoice.Items;
@@ -33,8 +45,9 @@ namespace InvoiceMaker.ViewModels
             // 기본 날짜
             LodgingStartDate = DateTime.Today;
             LodgingEndDate = DateTime.Today.AddDays(1);
-
             // 항목 타입 리스트
+            ItemTypes = new ObservableCollection<string>(_itemMasterMap.Keys);
+            /*
             ItemTypes = new ObservableCollection<string>
             {
                 "숙박",
@@ -44,7 +57,7 @@ namespace InvoiceMaker.ViewModels
                 "주말식사",
                 "렌터카"
             };
-
+            */
             // 커맨드
             RefreshRateCommand = new RelayCommand(async _ => await LoadExchangeRateAsync());
             ExportToExcelCommand = new RelayCommand(_ => ExportToExcel());
@@ -52,6 +65,11 @@ namespace InvoiceMaker.ViewModels
             RemoveItemCommand = new RelayCommand(p => RemoveItem(p as InvoiceItem));
             MoveItemUpCommand = new RelayCommand(p => MoveUp(p as InvoiceItem));
             MoveItemDownCommand = new RelayCommand(p => MoveDown(p as InvoiceItem));
+            var repo = new ReservationRepository();
+         /*
+            Reservations = new ObservableCollection<Reservation>(
+                repo.GetInvoiceableReservations()
+            );*/
 
             // 초기에 기본 항목 1개 (숙박)
             AddInitialItem("숙박");
@@ -79,6 +97,16 @@ namespace InvoiceMaker.ViewModels
         {
             get;
         }
+
+        public ObservableCollection<Reservation> Reservations
+        {
+            get;
+        }
+        public Reservation SelectedReservation
+        {
+            get; set;
+        }
+
 
         public bool IsLoadingRate
         {
@@ -413,24 +441,14 @@ namespace InvoiceMaker.ViewModels
 
         private decimal GetDefaultUnitPrice(string itemType)
         {
-            // 필요하면 항목별 기본 단가 여기서 정의
-            switch (itemType)
+            if (_itemMasterMap != null &&
+                _itemMasterMap.TryGetValue(itemType, out var master))
             {
-                case "숙박":
-                    return 95m;
-                case "출퇴근":
-                    return 50m;
-                case "공항픽업":
-                    return 30m;
-                case "오마카세":
-                    return 100m;
-                case "주말식사":
-                    return 20m;
-                case "렌터카":
-                    return 45m;
-                default:
-                    return 0m;
+                return master.UnitPrice;
             }
+
+            // 안전장치 (DB에 없을 경우)
+            return 0m;
         }
 
         private void ExportToExcel()

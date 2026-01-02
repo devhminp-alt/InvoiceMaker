@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -19,6 +20,8 @@ namespace InvoiceMaker.Models
             _quantity = 1;
             _unitPrice = 0m;
             _discountPercent = 0m;
+
+
         }
 
         // ===== 백킹 필드 =====
@@ -31,7 +34,9 @@ namespace InvoiceMaker.Models
         private DateTime? _startDate;
         private DateTime? _endDate;
         private decimal _exchangeRate;     // USD -> MXN
-        private decimal _exchangeRateKrw;  // USD -> KRW
+        private decimal _exchangeRateKrw;  // USD -> KRW// ===== ItemMaster 연결용 =====
+        private int? _itemMasterId;
+        private Dictionary<string, ItemMaster> _itemMasterMap;
 
         // ===== 프로퍼티 =====
 
@@ -191,6 +196,19 @@ namespace InvoiceMaker.Models
                 }
             }
         }
+        public int? ItemMasterId
+        {
+            get => _itemMasterId;
+            set
+            {
+                if (_itemMasterMap.TryGetValue(ItemType, out var master))
+                {
+                    _itemMasterId = master.Id;
+                    OnPropertyChanged();
+                }                
+            }
+        }
+
 
         // ===== 계산 프로퍼티 =====
 

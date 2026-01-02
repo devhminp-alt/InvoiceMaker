@@ -39,5 +39,19 @@ namespace InvoiceMaker.Models
         public decimal TotalUsd => Items.Sum(i => i.AmountUsd);
         public decimal TotalPeso => Items.Sum(i => i.AmountPeso);
         public decimal TotalKrw => Items.Sum(i => i.AmountKrw);
+
+        public long InvoiceId
+        {
+            get; set;
+        }
+        public long ReservationId
+        {
+            get; set;
+        }
+        public string InvoiceNo
+        {
+            get; set;
+        }
+
     }
 }
