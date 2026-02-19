@@ -20,12 +20,14 @@ namespace InvoiceMaker.Services
 
                 // 헤더
                 ws.Cell("J9").Value = invoice.InvoiceDate;               // Fecha de la factura
-                ws.Cell("C8").Value = invoice.ClientName ?? string.Empty;
+                ws.Cell("C7").Value = invoice.ClientName ?? string.Empty;
                 ws.Cell("I10").Value = invoice.ExchangeRate;              // 1 USD = MXN (환율)
-                ws.Cell("G8").Value = $"N0. de factura:{invoice.InvoiceDate.ToString("yyMMdd")}"; // invoice 넘버
+                ws.Cell("J10").Value = invoice.ExchangeRateKrw;              // 1 USD = KRW (환율)
+                ws.Cell("G8").Value = $"N0. de factura:{invoice.InvoiceDate.ToString("yyMMdd")}"; // invoice 넘버J
+                ws.Cell("G10").Value = $"{invoice.InvoiceDate.ToString("yyMMdd")}\n기준 환율";
 
                 int topRow = 12;  // 위 인보이스 시작
-                int bottomRow = 34;  // 아래 인보이스 시작
+                int bottomRow = 35;  // 아래 인보이스 시작
 
                 foreach (var item in invoice.Items)
                 {
@@ -73,6 +75,8 @@ namespace InvoiceMaker.Services
                     topRow++;
                     bottomRow++;
                 }
+
+
 
                 workbook.SaveAs(outputPath);
             }

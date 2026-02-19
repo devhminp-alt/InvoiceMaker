@@ -31,6 +31,14 @@ namespace InvoiceMaker.Models
             get; set;
         }
 
+        /// <summary>
+        /// 1 USD = ? KRW (엑셀 템플릿용)
+        /// </summary>
+        public decimal ExchangeRateKrw
+        {
+            get; set;
+        }
+
         public ObservableCollection<InvoiceItem> Items
         {
             get;

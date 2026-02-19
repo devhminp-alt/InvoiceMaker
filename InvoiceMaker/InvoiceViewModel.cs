@@ -139,12 +139,12 @@ namespace InvoiceMaker.ViewModels
         /// <summary>1 USD = ? KRW</summary>
         public decimal ExchangeRateUsdToKrw
         {
-            get => _exchangeRateUsdToKrw;
+            get => Invoice.ExchangeRateKrw;
             set
             {
-                if (_exchangeRateUsdToKrw != value)
+                if (Invoice.ExchangeRateKrw != value)
                 {
-                    _exchangeRateUsdToKrw = value;
+                    Invoice.ExchangeRateKrw = value;
                     OnPropertyChanged();
                     UpdateItemExchangeRates();
                 }
@@ -467,7 +467,7 @@ namespace InvoiceMaker.ViewModels
                 var dialog = new SaveFileDialog
                 {
                     Filter = "Excel Files (*.xlsx)|*.xlsx",
-                    FileName = "Factura_" + Invoice.InvoiceDate.ToString("yyyyMMdd") + ".xlsx"
+                    FileName = $"Factura_{Invoice.ClientName}_{Invoice.InvoiceDate.ToString("yyyyMMdd")}.xlsx"
                 };
                 
                 if (dialog.ShowDialog() == true)
